@@ -36,8 +36,6 @@ public class Main {
         boolean isValidTsr = isTsrValid(tsq, tsr);
         System.out.println("TSR Valid: " + (isValidTsr ? "TRUE" : "FALSE"));
 
-
-
         X509CertificateHolder cert = getCertificateFromString("-----BEGIN CERTIFICATE-----\n" +
                 "MIIGTDCCBDSgAwIBAgIURH+OiL35Gal4E3nHzpX1BLBgr/gwDQYJKoZIhvcNAQEL\n" +
                 "BQAwUjELMAkGA1UEBhMCS1oxQzBBBgNVBAMMOtKw0JvQotCi0KvSmiDQmtCj05jQ\n" +
@@ -75,7 +73,7 @@ public class Main {
                 "/LLRpFZCL6BVdpgEZuPGLRKBSHbKafPNNv9RA9wwWQw=\n" +
                 "-----END CERTIFICATE-----\n");
 
-        //cert = getCertificateFromFile("tsa.pem");
+        //cert = getCertificateFromFile("tsa.pem.crt");
 
         boolean isValidSign = validateSign(tsr, cert);
 
@@ -122,8 +120,8 @@ public class Main {
         return certificateHolder;
     }
 
-    public void writeX509ToFile(X509CertificateHolder cert) throws Throwable {
-        PemWriter writer = new PemWriter(new FileWriter(new File("tsa.pem")));
+    public void writeX509ToFile(X509CertificateHolder cert, String filename) throws Throwable {
+        PemWriter writer = new PemWriter(new FileWriter(new File(filename)));
         writer.writeObject(new PemObject("CERTIFICATE", cert.toASN1Structure().getEncoded()));
         writer.flush();
     }
