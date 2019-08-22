@@ -7,6 +7,7 @@ import org.bouncycastle.tsp.TimeStampRequest;
 import org.bouncycastle.tsp.TimeStampRequestGenerator;
 import org.bouncycastle.tsp.TimeStampResponse;
 import org.bouncycastle.util.Store;
+import org.bouncycastle.util.encoders.Base64;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemWriter;
 
@@ -25,8 +26,15 @@ public class Main {
 
     public void start() throws Throwable {
         byte[] document = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+        byte[] digest = MessageDigest.getInstance("SHA-256").digest(document);
 
-        TimestampResult result = makeTimestamp(document);
+        System.out.println("Digest: " + new String(Base64.encode(digest)));
+
+        TimestampResult result = makeTimestamp(digest);
+
+        System.out.println("TimestampRequest: " + new String(Base64.encode(result.getTsq().getEncoded())));
+        System.out.println("TimestampResponse: " + new String(Base64.encode(result.getTsr().getEncoded())));
+
         if(validateSign(result.getTsr(), "D:/timestamp/tsa.pem")){
             System.out.println("CORRENT SIGN");
         }else{
@@ -38,6 +46,8 @@ public class Main {
         }else{
             System.out.println("TIMESTAMP NOT VALID");
         }
+
+
 
 
         System.out.println(result.getTsr().getTimeStampToken().getTimeStampInfo().getGenTime());
@@ -74,9 +84,9 @@ public class Main {
         }
     }
 
-    public TimestampResult makeTimestamp(byte[] data) throws Throwable {
+    public TimestampResult makeTimestamp(byte[] digest) throws Throwable {
         try {
-            byte[] digest = MessageDigest.getInstance("SHA-256").digest(data);
+
 
             TimeStampRequestGenerator tsReqGen = new TimeStampRequestGenerator();
             tsReqGen.setCertReq(false); // Будет ли сертификат приложен к ответу
