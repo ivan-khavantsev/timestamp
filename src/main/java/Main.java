@@ -26,96 +26,55 @@ public class Main {
 
     public void start() throws Throwable {
         byte[] document = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+        TimeStampRequest tsq = createTsq(document);
+        TimeStampResponse tsr = getServiceTimestamp(tsq.getEncoded());
+
+        System.out.println("Digest: " + new String(Base64.encode(tsq.getMessageImprintDigest())));
+        System.out.println("TimestampRequest: " + new String(Base64.encode(tsq.getEncoded())));
+        System.out.println("TimestampResponse: " + new String(Base64.encode(tsr.getEncoded())));
+
+        boolean isValidTsr = isTsrValid(tsq, tsr);
+        System.out.println("TSR Valid: " + (isValidTsr ? "TRUE" : "FALSE"));
+
+        boolean isValidSign = validateSign(tsr, "D:/timestamp/tsa.pem");
+        System.out.println("Sign Valid: " + (isValidSign ? "TRUE" : "FALSE"));
+
+        System.out.println("Timestamp: " + tsr.getTimeStampToken().getTimeStampInfo().getGenTime());
+
+    }
+
+
+    public TimeStampRequest createTsq(byte[] document) throws Throwable {
         byte[] digest = MessageDigest.getInstance("SHA-256").digest(document);
-
-        System.out.println("Digest: " + new String(Base64.encode(digest)));
-
-        TimestampResult result = makeTimestamp(digest);
-
-        System.out.println("TimestampRequest: " + new String(Base64.encode(result.getTsq().getEncoded())));
-        System.out.println("TimestampResponse: " + new String(Base64.encode(result.getTsr().getEncoded())));
-
-        if(validateSign(result.getTsr(), "D:/timestamp/tsa.pem")){
-            System.out.println("CORRENT SIGN");
-        }else{
-            System.out.println("INCORRECT SIGN");
-        }
-
-        if(result.validate()){
-            System.out.println("TIMESTAMP VALID");
-        }else{
-            System.out.println("TIMESTAMP NOT VALID");
-        }
-
-
-
-
-        System.out.println(result.getTsr().getTimeStampToken().getTimeStampInfo().getGenTime());
-
+        TimeStampRequestGenerator tsReqGen = new TimeStampRequestGenerator();
+        tsReqGen.setCertReq(false); // Будет ли сертификат приложен к ответу
+        TimeStampRequest tsq = tsReqGen.generate(CMSAlgorithm.SHA256, digest);
+        return tsq;
     }
 
-    class TimestampResult {
-        private TimeStampRequest tsq;
-        private TimeStampResponse tsr;
 
-        public TimeStampRequest getTsq() {
-            return tsq;
-        }
-
-        public void setTsq(TimeStampRequest tsq) {
-            this.tsq = tsq;
-        }
-
-        public TimeStampResponse getTsr() {
-            return tsr;
-        }
-
-        public void setTsr(TimeStampResponse tsr) {
-            this.tsr = tsr;
-        }
-
-        public boolean validate() throws TSPException {
-            try {
-                tsr.validate(tsq);
-                return true;
-            } catch (TSPException e) {
-                return false;
-            }
-        }
-    }
-
-    public TimestampResult makeTimestamp(byte[] digest) throws Throwable {
+    public boolean isTsrValid(TimeStampRequest tsq, TimeStampResponse tsr) {
         try {
-
-
-            TimeStampRequestGenerator tsReqGen = new TimeStampRequestGenerator();
-            tsReqGen.setCertReq(false); // Будет ли сертификат приложен к ответу
-            TimeStampRequest tsq = tsReqGen.generate(CMSAlgorithm.SHA256, digest);
-
-            TimeStampResponse tsr = getServiceTimestamp(tsq.getEncoded());
-
-            TimestampResult result = new TimestampResult();
-            result.setTsq(tsq);
-            result.setTsr(tsr);
-            return result;
-        } catch (Throwable t) {
-            throw new Exception("Невозможно получить timestamp", t);
+            tsr.validate(tsq);
+            return true;
+        } catch (TSPException e) {
+            return false;
         }
     }
 
-    public boolean validateSign(TimeStampResponse tsr, String certFileName) throws Throwable{
+    public boolean validateSign(TimeStampResponse tsr, String certFileName) throws Throwable {
         X509CertificateHolder cert2 = getCertificateFromFile(certFileName);
         return tsr.getTimeStampToken().isSignatureValid(new JcaSimpleSignerInfoVerifierBuilder().build(cert2));
     }
 
-    public X509CertificateHolder getCertificateFromFile(String filename) throws Throwable{
+    public X509CertificateHolder getCertificateFromFile(String filename) throws Throwable {
         FileReader fileReader = new FileReader(new File(filename));
         PEMParser pemParser = new PEMParser(fileReader);
         X509CertificateHolder certificateHolder = (X509CertificateHolder) pemParser.readObject();
         return certificateHolder;
     }
 
-    public void writeX509ToFile(X509CertificateHolder cert) throws Throwable{
+    public void writeX509ToFile(X509CertificateHolder cert) throws Throwable {
         PemWriter writer = new PemWriter(new FileWriter(new File("tsa.pem")));
         writer.writeObject(new PemObject("CERTIFICATE", cert.toASN1Structure().getEncoded()));
         writer.flush();
@@ -125,8 +84,8 @@ public class Main {
         Store storeTt = tsr.getTimeStampToken().getCertificates();
         Collection collTt = storeTt.getMatches(tsr.getTimeStampToken().getSID());
         Iterator certIt2 = collTt.iterator();
-        X509CertificateHolder cert = (X509CertificateHolder)certIt2.next();
-        return  cert;
+        X509CertificateHolder cert = (X509CertificateHolder) certIt2.next();
+        return cert;
     }
 
     private TimeStampResponse getServiceTimestamp(byte[] tsqData) throws Throwable {
@@ -162,13 +121,5 @@ public class Main {
         result = byteArrayOutputStream.toByteArray();
         byteArrayOutputStream.close();
         return new TimeStampResponse(result);
-    }
-
-    public static String bytesToHex(byte[] hashInBytes) {
-        StringBuilder sb = new StringBuilder();
-        for (byte b : hashInBytes) {
-            sb.append(String.format("%02x", b));
-        }
-        return sb.toString();
     }
 }
